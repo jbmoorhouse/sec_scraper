@@ -3,6 +3,8 @@ from scrapy.spiders import CrawlSpider, Rule
 from scrapy.linkextractors import LinkExtractor
 from scrapy.loader import ItemLoader
 from document_scraper.items import CikItem
+from document_scraper.postprocess import MapComposeGen, get_ten_k
+from scrapy.loader.processors import Compose, MapCompose
 from datetime import datetime
 
 class MySpider(CrawlSpider):
@@ -83,6 +85,7 @@ class MySpider(CrawlSpider):
         loader.add_xpath(
             'documents',
             "/html/body",
+            MapComposeGen(get_ten_k)
         )
 
         return loader.load_item()
