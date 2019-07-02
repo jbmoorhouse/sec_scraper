@@ -113,6 +113,7 @@ def get_ten_k(document):
         doc_type = _get_document_type(doc)
 
         if doc_type == "10-k":
+            doc = BeautifulSoup(doc, "html.parser").get_text()
             yield doc.lower()
 
 

@@ -17,7 +17,7 @@ class MySpider(CrawlSpider):
 
     def parse(self, response):
 
-        for sel in response.xpath('(//*[@id="cos"]//tr)[last()]'):#[position()>1]'):
+        for sel in response.xpath('(//*[@id="cos"]//tr)[position()>last()-10]'):#[position()>1]'):
 
             cik_number = sel.xpath("td[2]//text()").extract_first()
 
@@ -41,7 +41,7 @@ class MySpider(CrawlSpider):
             '//*[@id="documentsbutton"]/@href'
         )
 
-        for url in document_buttons.extract()[:1]:
+        for url in document_buttons.extract():
             yield response.follow(
                 url,
                 callback=self.parse_page_two,
