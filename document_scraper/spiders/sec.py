@@ -17,7 +17,7 @@ class MySpider(CrawlSpider):
 
     def parse(self, response):
 
-        for sel in response.xpath('(//*[@id="cos"]//tr)[position()>last()-10]'):#[position()>1]'):
+        for sel in response.xpath('(//*[@id="cos"]//tr)[last()]'):#[position()>last()-10]'):
 
             cik_number = sel.xpath("td[2]//text()").extract_first()
 

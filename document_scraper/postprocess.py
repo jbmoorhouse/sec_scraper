@@ -12,6 +12,8 @@ from nltk.stem import WordNetLemmatizer
 from nltk.corpus import wordnet
 from nltk.tokenize import word_tokenize
 
+import unicodedata
+
 
 class MapComposeGen(MapCompose):
 
@@ -28,13 +30,19 @@ class MapComposeGen(MapCompose):
 
         for func in wrapped_funcs:
             for v in values:
-                next_values = func(v)
+                try:
+                    next_values = func(v)
+                except Exception as e:
+                    raise ValueError("Error in MapCompose with "
+                                     "{} value={} error='{}: {}'".format(
+                        (str(func), value, type(e).__name__, str(e))))
+
             values = next_values
 
         return list(values)
 
 
-def _get_documents(document):
+def _get_documents(document_txt):
     """
     Extract the <document> html tags from the text
 
@@ -45,13 +53,13 @@ def _get_documents(document):
 
     Returns
     -------
-    extracted_docs : list of str
+    documents : list of str
         The document strings found in `text`
     """
 
     return re.findall(r'<document>(.*?)</document>', document, re.DOTALL)
 
-def _get_document_type(tag_document):
+def _get_document_type(document_tag):
 
     """
     Return the document type lowercased
@@ -63,15 +71,20 @@ def _get_document_type(tag_document):
 
     Returns
     -------
-    doc_type : str
+    document_type : str
         The document type lowercased
     """
 
     tag = "<type>"
-    type_pattern = re.compile(r'{}[^\n]+'.format(tag))
-    doc_type = "".join(type_pattern.findall(tag_document))[len(tag):]
+    pattern = re.compile(r'{}[^\n]+'.format(tag))
+    m = pattern.search(tag_document))
 
-    return doc_type.lower()
+    try:
+        document_type = m.group()
+    except AttributeError as e:
+        print(e, "Invalid tag")
+
+    return remove_tags(document_type)
 
 
 def _lemmatize_words(document):
@@ -96,10 +109,10 @@ def _lemmatize_words(document):
     return [wnl.lemmatize(t, pos='v') for t in tokens]
 
 
-def get_ten_k(document):
+def get_ten_k(document_txt):
     """
     Yield all documents with type tag <type>10-k from the raw 10-k document. Function is
-    to be used with MapComposeGen().
+    to be used with MapComposeGen(). Function to be wrapped in MapComposeGen
 
     Parameters
     ----------
@@ -107,14 +120,16 @@ def get_ten_k(document):
 
     """
 
-    documents = _get_documents(document)
+    documents = _get_documents(document_txt)
 
     for doc in documents:
-        doc_type = _get_document_type(doc)
+        document_type = _get_document_type(doc)
 
-        if doc_type == "10-k":
-            doc = BeautifulSoup(doc, "html.parser").get_text()
-            yield doc.lower()
+        if document_type.strip().lower() == "10-k":
+            soup = BeautifulSoup(doc, "html.parser").get_text()
+            text = unicodedata.normalize('NFKD', soup)
+
+            yield text.lower()
 
 
 
