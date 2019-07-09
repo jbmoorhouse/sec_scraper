@@ -57,9 +57,11 @@ def _get_documents(document_txt):
         The document strings found in `text`
     """
 
-    return re.findall(r'<document>(.*?)</document>', document, re.DOTALL)
+    document_txt = document_txt.lower()
 
-def _get_document_type(document_tag):
+    return re.findall(r'<document>(.*?)</document>', document_txt, re.DOTALL)
+
+def _get_document_type(document_tag, tag = "<type>"):
 
     """
     Return the document type lowercased
@@ -75,9 +77,8 @@ def _get_document_type(document_tag):
         The document type lowercased
     """
 
-    tag = "<type>"
     pattern = re.compile(r'{}[^\n]+'.format(tag))
-    m = pattern.search(tag_document))
+    m = pattern.search(document_tag)
 
     try:
         document_type = m.group()
@@ -125,11 +126,11 @@ def get_ten_k(document_txt):
     for doc in documents:
         document_type = _get_document_type(doc)
 
-        if document_type.strip().lower() == "10-k":
+        if document_type.strip() == "10-k":
             soup = BeautifulSoup(doc, "html.parser").get_text()
             text = unicodedata.normalize('NFKD', soup)
 
-            yield text.lower()
+            yield text
 
 
 

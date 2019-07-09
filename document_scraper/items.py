@@ -10,6 +10,6 @@ from scrapy.loader.processors import TakeFirst, Identity
 
 
 class CikItem(Item):
-    cik = Field(output_processor = TakeFirst())
+    #cik = Field(output_processor = TakeFirst())
     report_date = Field(output_processor = TakeFirst())
     documents = Field(output_processor = TakeFirst())
