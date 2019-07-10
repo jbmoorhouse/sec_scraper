@@ -12,15 +12,8 @@ from datetime import datetime
 import os
 
 
-
 class MySpider(CrawlSpider):
     name = 'sec'
-
-    DIR_NAME = os.getcwd()
-    FILE_NAME = "cik.txt"
-
-    if FILE_NAME in os.listdir(DIR_NAME):
-        file_path = os.path.join(DIR_NAME, FILE_NAME)
 
     with open(FILE_NAME, "r") as f:
         start_urls = f.read().splitlines()[:2]
@@ -29,44 +22,24 @@ class MySpider(CrawlSpider):
         'DOWNLOAD_DELAY' : 0.25
     }
 
-    #start_urls = ["https://www.sec.gov/divisions/corpfin/organization/cfia-123.htm"]
-
-    # def parse(self, response):
-    #
-    #     for sel in response.xpath('(//*[@id="cos"]//tr)[last()]'):#[position()>last()-10]'):
-    #
-    #         cik_number = sel.xpath("td[2]//text()").extract_first()
-    #
-    #         yield response.follow(
-    #             'https://www.sec.gov/cgi-bin/browse-edgar?action=getcompany&CIK={}&type=10-K' \
-    #             '&dateb=&owner=exclude&count=40'.format(cik_number),
-    #             callback = self.index,
-    #             meta = {'cik' : cik_number}
-    #         )
-
-        # alphanumeric_links = LinkExtractor(allow=r'/cfia-[a-z]+.htm')
-        # for link in alphanumeric_links.extract_links(response):
-        #     yield response.follow(
-        #         link.url,
-        #         callback=self.parse
-        #   )
 
     def parse(self, response):
         """
-        The parse method extracts the filing document links for all Filing Dates, yielding all
-        relavent request instances objects to follow. The request instances contain 10-K archive links
-        which handled by the defined callback function.
+        The parse method extracts the filing document links for all Filing Dates, yielding all relavent request
+        instances objects to follow. The request instances contain 10-K archive links which handled by the defined
+        callback function.
 
         Parameters
         ----------
-        response: scrapy.http.Response object
+        response: scrapy.http.Response
             response (web page) from `start_urls` element
+
 
         Yields
         -------
         requests : generator
-            requests contains each request instance to follow a specific link url. The link url contains
-            each 10-K archive link indexed by Filing Date. Example request:
+            requests contains each request instance to follow link url in document_button. The link url contains each
+            10-K archive link indexed by Filing Date. Example request:
             https://www.sec.gov/Archives/edgar/data/1733998/000173399819000004/0001733998-19-000004-index.htm
         """
 
@@ -83,13 +56,27 @@ class MySpider(CrawlSpider):
 
     def parse_page_two(self, response):
         """
-        The parse_page_two method follows the response object yielded in parse. The response objects
-        are the requests for the 10-K document archive pages.
+        The parse_page_two method follows the response object yielded in parse. The response objects are the requests
+        for the 10-K document archive pages (e.g.
+        https://www.sec.gov/Archives/edgar/data/1090872/000109087218000019/0001090872-18-000019-index.htm). The
+        complete_submission_file are extracted and the request instances containing the submissions is returned
+
+        Document 'Period of Report' information is passed to response.meta as 'report_date'.
+
+        Parameters
+        ----------
+        response: scrapy.http.Response
+            document archive indexed by date (e.g.
+            https://www.sec.gov/Archives/edgar/data/1090872/000109087218000019/0001090872-18-000019-index.htm)
+
+        Returns
+        -------
+        request : scrapy.http.Request
+            request instance to follow complete_submission_file.txt link url
+
         """
 
-
-
-        filing_txt = response.xpath(
+        complete_submission_file = response.xpath(
             '(//*[contains(@href, ".txt")])[last()]/@href'
         )
 
@@ -97,15 +84,31 @@ class MySpider(CrawlSpider):
 
         if 'Period of Report' in document_info:
             idx = document_info.index('Period of Report')
+
+            # `idx + 1` since xpath is indexed from 1 unlike python which is indexed from 0
             report_date = response.xpath('(//*[@class="info"]//text())[{}]'.format(idx + 1)).extract_first()
 
         return response.follow(
-            filing_txt.extract_first(),
+            complete_submission_file.extract_first(),
             callback=self.parse_page_three,
             meta={'report_date' : report_date}#'cik' : response.meta['cik'],
         )
 
+
     def parse_page_three(self, response):
+        """
+        add_xpath method is applied to response instance (complete_submission_file). ItemLoader() is populated with
+        documents, generated from response.xpath, along with cik and report_date, loaded from response.meta
+
+        Parameters
+        ----------
+        response: scrapy.http.Response
+            complete_submission_file
+
+        Returns
+        -------
+        item: scrapy.loader.ItemLoader
+        """
 
         loader = ItemLoader(item=CikItem(), response=response)
 
@@ -128,4 +131,4 @@ class MySpider(CrawlSpider):
         return loader.load_item()
 
 """
-2) Change back to all companies in (//*[@id="cos"]//tr)[position()>1]"""
+Change back to all companies in (//*[@id="cos"]//tr)[position()>1]"""
