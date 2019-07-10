@@ -99,12 +99,11 @@ class MySpider(CrawlSpider):
             idx = document_info.index('Period of Report')
             report_date = response.xpath('(//*[@class="info"]//text())[{}]'.format(idx + 1)).extract_first()
 
-        for url in filing_txt.extract():
-            yield response.follow(
-                url,
-                callback=self.parse_page_three,
-                meta={'report_date' : report_date}#'cik' : response.meta['cik'],
-            )
+        return response.follow(
+            filing_txt.extract_first(),
+            callback=self.parse_page_three,
+            meta={'report_date' : report_date}#'cik' : response.meta['cik'],
+        )
 
     def parse_page_three(self, response):
 
@@ -123,7 +122,7 @@ class MySpider(CrawlSpider):
         loader.add_xpath(
             'documents',
             "/html/body",
-            MapComposeGen(get_ten_k)
+            MapCompose(get_ten_k)
         )
 
         return loader.load_item()

@@ -3,80 +3,72 @@ from w3lib.html import remove_tags
 from bs4 import BeautifulSoup
 
 from scrapy.loader.processors import Compose, MapCompose
-from scrapy.utils.misc import arg_to_iter
-from scrapy.utils.datatypes import MergeDict
-from scrapy.loader.common import wrap_loader_context
 
-import nltk
-from nltk.stem import WordNetLemmatizer
-from nltk.corpus import wordnet
-from nltk.tokenize import word_tokenize
-
-import unicodedata
+from unidecode import unidecode
 
 
-class MapComposeGen(MapCompose):
-
-    def __call__(self, value, loader_context=None):
-
-        values = arg_to_iter(value)
-
-        if loader_context:
-            context = MergeDict(loader_context, self.default_loader_context)
-        else:
-            context = self.default_loader_context
-
-        wrapped_funcs = [wrap_loader_context(f, context) for f in self.functions]
-
-        for func in wrapped_funcs:
-            for v in values:
-                try:
-                    next_values = func(v)
-                except Exception as e:
-                    raise ValueError("Error in MapCompose with "
-                                     "{} value={} error='{}: {}'".format(
-                        (str(func), value, type(e).__name__, str(e))))
-
-            values = next_values
-
-        return list(values)
-
-
-def _get_documents(document_txt):
+def _get_documents(complete_submission_file):
     """
-    Extract the <document> html tags from the text
+    An SEC complete submission text file (e.g.
+    https://www.sec.gov/Archives/edgar/data/1090872/000089161802000185/0000891618-02-000185-index.htm) contains all
+    form types (FORM 10-K, EXHIBIT 10.7, EXHIBIT 10.13 etc.). _get_documents extracts all <document> tags from the
+    complete submission, returning a list of all submissions
 
     Parameters
     ----------
-    text : str
-        Raw 10-k scraped .txt file
+    complete_submission_file : str
+        complete submission response .txt file (e.g.
+        https://www.sec.gov/Archives/edgar/data/1090872/ 000089161802000185/0000891618-02-000185.txt)
+
 
     Returns
     -------
     documents : list of str
-        The document strings found in `text`
+        list of all <document> content found in document_txt
+
+
+    Examples
+    --------
+    >>> documents = ["<DOCUMENT><TYPE>10-K ... </BODY></HTML></TEXT></DOCUMENT>",
+                     "<DOCUMENT><TYPE>EX-10.7 ... </TEXT></DOCUMENT>"]
     """
 
-    document_txt = document_txt.lower()
+    complete_submission_file = complete_submission_file.lower()
+    documents =  re.findall(r'<document>(.*?)</document>', complete_submission_file, re.DOTALL)
 
-    return re.findall(r'<document>(.*?)</document>', document_txt, re.DOTALL)
+    return documents
 
-def _get_document_type(document_tag, tag = "<type>"):
-
+def _get_document_type(document):
     """
-    Return the document type lowercased
+    complete_submission_file contains one or more submission document. Each document includes a type tag to denote
+    the submission type (e.g. <TYPE>10-K , <TYPE>EX-10.7). _get_document_type return the document type as a string.
+    lowercased
 
     Parameters
     ----------
-    tag_document : str
+    document : str
         The document string
 
     Returns
     -------
     document_type : str
         The document type lowercased
+
+    Examples
+    --------
+
+    >>> document_type = _get_document_type("<DOCUMENT><TYPE>10-K ... </BODY></HTML></TEXT></DOCUMENT>")
+    >>> document_type
+
+    "10-k"
+
+    >>> document_type = _get_document_type(""<DOCUMENT><TYPE>EX-10.7 ... </TEXT></DOCUMENT>")
+    >>> document_type
+
+    "ex-10.7"
     """
 
+    tag = "<type>"
     pattern = re.compile(r'{}[^\n]+'.format(tag))
     m = pattern.search(document_tag)
 
@@ -88,51 +80,30 @@ def _get_document_type(document_tag, tag = "<type>"):
     return remove_tags(document_type)
 
 
-def _lemmatize_words(document):
+def get_ten_k(complete_submission_file):
     """
-    Lemmatize words
+    complete_submission_file contains a single document of interest (10-K and all other forms of 10-K). get_ten_k must
+    account for all types of 10-K document, such as late submissions (10-k405) and submission amendments (10-k/a).
 
     Parameters
     ----------
-    words : str
+    complete_submission_file : str
+        complete submission response .txt file (e.g.
+        https://www.sec.gov/Archives/edgar/data/1090872/ 000089161802000185/0000891618-02-000185.txt)
 
     Returns
     -------
-    lemmatized_words : list of str
-        List of lemmatized words
+    text : str
+        text contains all relevant content from complete_submission_file for storage and/or natural langauge processing.
     """
 
-    nltk.download('wordnet')
-    wnl = WordNetLemmatizer()
-
-    tokens = word_tokenize(document)
-
-    return [wnl.lemmatize(t, pos='v') for t in tokens]
-
-
-def get_ten_k(document_txt):
-    """
-    Yield all documents with type tag <type>10-k from the raw 10-k document. Function is
-    to be used with MapComposeGen(). Function to be wrapped in MapComposeGen
-
-    Parameters
-    ----------
-    document : str
-
-    """
-
-    documents = _get_documents(document_txt)
+    documents = _get_documents(complete_submission_file)
 
     for doc in documents:
         document_type = _get_document_type(doc)
 
-        if document_type.strip() == "10-k":
-            soup = BeautifulSoup(doc, "html.parser").get_text()
-            text = unicodedata.normalize('NFKD', soup)
+        if "10-k" in document_type.strip():
+            soup = BeautifulSoup(doc, "html.parser")
+            text = unidecode(soup.get_text())
 
-            yield text
-
-
-
-
-
+            return text
