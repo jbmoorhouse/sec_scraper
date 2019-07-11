@@ -40,9 +40,8 @@ def _get_documents(complete_submission_file):
 
 def _get_document_type(document):
     """
-    complete_submission_file contains one or more submission document. Each document includes a type tag to denote
-    the submission type (e.g. <TYPE>10-K , <TYPE>EX-10.7). _get_document_type return the document type as a string.
-    lowercased
+    complete_submission_file contains one or more submission documents. Each document includes a type tag to denote
+    the submission type (e.g. <TYPE>10-K , <TYPE>EX-10.7). _get_document_type returns the document type as a string.
 
     Parameters
     ----------

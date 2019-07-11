@@ -57,8 +57,7 @@ class MySpider(CrawlSpider):
         try:
             cik = cik.group()
         except AttributeError as e:
-            print("Invalid 'cik' number ")
-            cik = None
+            cik = 'None'
 
         document_buttons = response.xpath(
             '//*[@id="documentsbutton"]/@href'
@@ -145,7 +144,7 @@ class MySpider(CrawlSpider):
 
         loader.add_xpath(
             'documents',
-            "/html/body",
+            '/html/body',
             MapCompose(get_ten_k)
         )
 
