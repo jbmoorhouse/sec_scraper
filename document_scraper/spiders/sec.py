@@ -5,17 +5,23 @@ from scrapy.loader import ItemLoader
 from scrapy.loader.processors import Compose, MapCompose
 
 from document_scraper.items import CikItem
-from document_scraper.postprocess import MapComposeGen, get_ten_k
+from document_scraper.postprocess import get_ten_k
 
 from datetime import datetime
 
 import os
+import re
 
 
 class MySpider(CrawlSpider):
     name = 'sec'
 
-    with open(FILE_NAME, "r") as f:
+    DIR_NAME = os.getcwd()
+    FILE_NAME = "cik.txt"
+
+    file_path = os.path.join(DIR_NAME, FILE_NAME)
+
+    with open(file_path, "r") as f:
         start_urls = f.read().splitlines()[:2]
 
     custom_settings = {
@@ -43,6 +49,17 @@ class MySpider(CrawlSpider):
             https://www.sec.gov/Archives/edgar/data/1733998/000173399819000004/0001733998-19-000004-index.htm
         """
 
+        url = response.url
+        cik_re = re.compile(r'\d{10}')
+
+        cik = cik_re.search(url)
+
+        try:
+            cik = cik.group()
+        except AttributeError as e:
+            print("Invalid 'cik' number ")
+            cik = None
+
         document_buttons = response.xpath(
             '//*[@id="documentsbutton"]/@href'
         )
@@ -50,9 +67,10 @@ class MySpider(CrawlSpider):
         for url in document_buttons.extract():
             yield response.follow(
                 url,
-                callback=self.parse_page_two#,
-                #meta={'cik' : response.meta['cik']}
+                callback=self.parse_page_two,
+                meta = {'cik' : cik}
             )
+
 
     def parse_page_two(self, response):
         """
@@ -90,8 +108,11 @@ class MySpider(CrawlSpider):
 
         return response.follow(
             complete_submission_file.extract_first(),
-            callback=self.parse_page_three,
-            meta={'report_date' : report_date}#'cik' : response.meta['cik'],
+            callback = self.parse_page_three,
+            meta = {
+                'cik' : response.meta['cik'],
+                'report_date' : report_date
+            }
         )
 
 
@@ -112,10 +133,10 @@ class MySpider(CrawlSpider):
 
         loader = ItemLoader(item=CikItem(), response=response)
 
-        # loader.add_value(
-        #     'cik',
-        #     int(response.meta['cik']),
-        # )
+        loader.add_value(
+            'cik',
+            int(response.meta['cik']),
+        )
 
         loader.add_value(
             'report_date',

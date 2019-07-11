@@ -70,7 +70,7 @@ def _get_document_type(document):
 
     tag = "<type>"
     pattern = re.compile(r'{}[^\n]+'.format(tag))
-    m = pattern.search(document_tag)
+    m = pattern.search(document)
 
     try:
         document_type = m.group()

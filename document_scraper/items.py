@@ -11,7 +11,7 @@ from scrapy.loader.processors import MapCompose
 
 
 class CikItem(Item):
-    #cik = Field(output_processor = TakeFirst())
+    cik = Field(output_processor = TakeFirst())
     report_date = Field(
         output_processor = TakeFirst()
     )
